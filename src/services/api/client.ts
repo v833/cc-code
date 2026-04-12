@@ -22,9 +22,6 @@ export function getAnthropicClient(options?: { apiKey?: string; baseURL?: string
   return client
 }
 
-/**
- * Verify the API key is valid by making a lightweight request.
- */
 export async function verifyApiKey(apiKey?: string): Promise<boolean> {
   try {
     const client = getAnthropicClient(apiKey ? { apiKey } : undefined)
@@ -39,10 +36,6 @@ export async function verifyApiKey(apiKey?: string): Promise<boolean> {
   }
 }
 
-/**
- * Reset the cached client instance.
- * Useful when the API key changes at runtime.
- */
 export function resetClient(): void {
   clientInstance = null
 }

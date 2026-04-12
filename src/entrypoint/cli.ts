@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+
+import { verifyApiKey } from '../services/api/client.js'
+import dotenv from 'dotenv'
+dotenv.config({ override: true })
+
 const VERSION = '0.0.1'
 
 /**
@@ -13,6 +18,8 @@ function main(): void {
     console.log(`cc-agent v${VERSION}`)
     process.exit(0)
   }
+
+  // verifyApiKey()
 
   console.log('Hello, Agent CLI!')
 }
