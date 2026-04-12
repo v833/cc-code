@@ -10,7 +10,8 @@
   "scripts": {
     "dev": "tsx src/entrypoint/cli.ts",
     "build": "tsc",
-    "start": "node dist/entrypoint/cli.js"
+    "start": "node dist/entrypoint/cli.js",
+    "test:streaming": "tsx src/scripts/test-streaming.ts"
   },
   "keywords": [
     "agent",

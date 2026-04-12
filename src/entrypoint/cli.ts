@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 
 import { verifyApiKey } from '../services/api/client.js'
-import dotenv from 'dotenv'
-dotenv.config({ override: true })
+import { loadEnv } from '../utils/loadEnv.js'
+
+loadEnv()
 
 const VERSION = '0.0.1'
 
