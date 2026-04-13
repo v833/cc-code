@@ -1,14 +1,14 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import type { Tool, ToolContext, ToolResult } from "./Tool.js";
-import { resolveWorkspacePath } from "./pathUtils.js";
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import type { Tool, ToolContext, ToolResult } from './Tool.js'
+import { resolveWorkspacePath } from './pathUtils.js'
 
-const execFileAsync = promisify(execFile);
+const execFileAsync = promisify(execFile)
 
 interface GrepInput {
-  pattern: string;
-  path?: string;
-  include?: string;
+  pattern: string
+  path?: string
+  include?: string
 }
 
 /**
@@ -16,75 +16,75 @@ interface GrepInput {
  */
 async function hasCommand(command: string): Promise<boolean> {
   try {
-    await execFileAsync("sh", ["-lc", `command -v ${command}`]);
-    return true;
+    await execFileAsync('sh', ['-lc', `command -v ${command}`])
+    return true
   } catch {
-    return false;
+    return false
   }
 }
 
 export const grepTool: Tool = {
-  name: "Grep",
-  description: "Search file contents by regex pattern. Prefer this over Bash for code search.",
+  name: 'Grep',
+  description: 'Search file contents by regex pattern. Prefer this over Bash for code search.',
   inputSchema: {
-    type: "object" as const,
+    type: 'object' as const,
     properties: {
-      pattern: { type: "string", description: "Regex pattern to search for" },
-      path: { type: "string", description: "Directory or file path to search within" },
-      include: { type: "string", description: "Optional glob filter, e.g. *.ts" },
+      pattern: { type: 'string', description: 'Regex pattern to search for' },
+      path: { type: 'string', description: 'Directory or file path to search within' },
+      include: { type: 'string', description: 'Optional glob filter, e.g. *.ts' }
     },
-    required: ["pattern"],
+    required: ['pattern']
   },
   async call(rawInput: Record<string, unknown>, context: ToolContext): Promise<ToolResult> {
-    const input = rawInput as unknown as GrepInput;
+    const input = rawInput as unknown as GrepInput
     if (!input.pattern) {
-      return { content: "Error: pattern is required", isError: true };
+      return { content: 'Error: pattern is required', isError: true }
     }
 
-    let targetPath: string;
+    let targetPath: string
     try {
-      targetPath = resolveWorkspacePath(input.path ?? ".", context.cwd);
+      targetPath = resolveWorkspacePath(input.path ?? '.', context.cwd)
     } catch (error: unknown) {
       return {
         content: error instanceof Error ? `Error: ${error.message}` : `Error: ${String(error)}`,
-        isError: true,
-      };
+        isError: true
+      }
     }
 
     try {
-      if (await hasCommand("rg")) {
-        const args = ["-n", "--hidden"];
+      if (await hasCommand('rg')) {
+        const args = ['-n', '--hidden']
         if (input.include) {
-          args.push("-g", input.include);
+          args.push('-g', input.include)
         }
         // 把 path 放在最后，保持与常见 rg 用法一致，输出也更容易人工复现。
-        args.push(input.pattern, targetPath);
-        const { stdout } = await execFileAsync("rg", args, { maxBuffer: 1024 * 1024 });
-        const output = stdout.trim();
+        args.push(input.pattern, targetPath)
+        const { stdout } = await execFileAsync('rg', args, { maxBuffer: 1024 * 1024 })
+        const output = stdout.trim()
         return {
-          content: output ? output : `No matches found for pattern: ${input.pattern}`,
-        };
+          content: output ? output : `No matches found for pattern: ${input.pattern}`
+        }
       }
 
-      const grepArgs = ["-RIn", input.pattern, targetPath];
-      const { stdout } = await execFileAsync("grep", grepArgs, { maxBuffer: 1024 * 1024 });
-      const output = stdout.trim();
+      const grepArgs = ['-RIn', input.pattern, targetPath]
+      const { stdout } = await execFileAsync('grep', grepArgs, { maxBuffer: 1024 * 1024 })
+      const output = stdout.trim()
       return {
-        content: output ? output : `No matches found for pattern: ${input.pattern}`,
-      };
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error);
-      // rg / grep 在“未命中”时通常返回 code 1，这里把它映射成正常结果而不是报错。
-      if (message.includes("code 1")) {
-        return { content: `No matches found for pattern: ${input.pattern}` };
+        content: output ? output : `No matches found for pattern: ${input.pattern}`
       }
-      return { content: `Error running grep search: ${message}`, isError: true };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error)
+      // rg / grep 在“未命中”时通常返回 code 1，这里把它映射成正常结果而不是报错。
+      if (message.includes('code 1')) {
+        return { content: `No matches found for pattern: ${input.pattern}` }
+      }
+      return { content: `Error running grep search: ${message}`, isError: true }
     }
   },
   isReadOnly(): boolean {
-    return true;
+    return true
   },
   isEnabled(): boolean {
-    return true;
-  },
-};
+    return true
+  }
+}

@@ -79,6 +79,10 @@ export const bashTool: Tool = {
     const timeoutMs = typeof input.timeout === "number" ? input.timeout : DEFAULT_TIMEOUT_MS;
 
     return await new Promise<ToolResult>((resolve) => {
+      // 这里用 spawn 而不是 exec：
+      // - 更容易持续收集 stdout / stderr
+      // - 更好处理中断和超时
+      // - 避免一次性缓冲整段输出
       const child = spawn(process.env.SHELL || "bash", ["-lc", input.command], {
         cwd: context.cwd,
         env: process.env,

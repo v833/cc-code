@@ -133,6 +133,8 @@ export async function* streamMessage(
               name: block.name,
               input: {},
             };
+            // tool_use 的 input 会在后续 delta 里以 JSON 碎片流式抵达，
+            // 所以这里只先落一个占位 block，等 content_block_stop 再完成解析。
             currentToolInputJson = "";
             yield { type: "tool_use_start", id: block.id, name: block.name };
           }

@@ -219,6 +219,7 @@ export async function* query(
     }
 
     const nextTurnCount = state.turnCount + 1;
+    // 通信层只负责“这一轮请求”的流式收发；多轮编排由 agentic loop 自己掌控。
     const stream = streamMessage({
       messages: [...state.messages],
       model: params.model,
@@ -272,6 +273,8 @@ export async function* query(
       role: "assistant",
       content: assistantContent as any,
     };
+    // 先把 assistant message 写回历史，再决定是否需要执行工具。
+    // 这样可以完整保留“模型说了什么 + 想调用什么工具”的原始轨迹。
     const messagesWithAssistant = [...state.messages, assistantMessage];
     state = {
       messages: messagesWithAssistant,
@@ -312,6 +315,8 @@ export async function* query(
       };
     }
 
+    // Anthropic 规定 tool_result 要作为 user message 回填。
+    // 从 API 视角看，这属于“用户侧提供的新信息”，模型据此进入下一轮推理。
     state = {
       messages: [...state.messages, toolResultsMessage],
       turnCount: state.turnCount,

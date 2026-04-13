@@ -124,6 +124,8 @@ export class QueryEngine {
       const systemPrompt = renderSystemPrompt(systemParts);
       const tools = getToolsApiParams();
 
+      // QueryEngine 只负责“为本次输入装配上下文并启动 loop”，
+      // 不直接介入流式解析或工具执行细节。
       const loop = query({
         messages: [...this.messages],
         systemPrompt,

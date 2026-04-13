@@ -1,3 +1,11 @@
+/**
+ * Anthropic 的 message.content 不是单纯字符串，而是由多个内容块拼成：
+ * - text: 模型自然语言输出
+ * - tool_use: 模型发起工具调用
+ * - tool_result: 工具执行结果回填给模型
+ *
+ * 这也是整个项目要围绕 ContentBlock[] 来建模的原因。
+ */
 export interface TextBlock {
   type: 'text'
   text: string
@@ -23,11 +31,13 @@ export type ContentBlock = TextBlock | ToolUseBlock | ToolResultBlock
 
 export interface UserMessage {
   role: 'user'
+  // 普通用户输入是 string；而工具回填时，role 也是 user，但 content 会是 tool_result block 数组。
   content: string | ContentBlock[]
 }
 
 export interface AssistantMessage {
   role: 'assistant'
+  // assistant 可以在一条消息里同时“说话 + 调工具”，因此这里同样保留 block 结构。
   content: string | ContentBlock[]
 }
 

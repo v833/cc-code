@@ -17,6 +17,8 @@ function addLineNumbers(content: string, startLine: number): string {
   const maxLineNum = startLine + lines.length - 1;
   const padWidth = String(maxLineNum).length;
 
+  // 给模型返回带行号的文本，相当于提供“坐标系”。
+  // 后续无论是解释代码还是发起精确编辑，都比纯文本更稳。
   return lines
     .map((line, index) => `${String(startLine + index).padStart(padWidth, " ")}\t${line}`)
     .join("\n");
@@ -68,6 +70,7 @@ export const fileReadTool: Tool = {
     try {
       const stat = await fs.stat(resolvedPath);
       if (stat.isDirectory()) {
+        // Read 在目录场景下不报错，直接退化成 listing，方便模型先摸清结构再继续细读文件。
         const entries = await fs.readdir(resolvedPath);
         return { content: `Directory listing for ${input.file_path}:\n${entries.join("\n")}` };
       }
@@ -75,6 +78,7 @@ export const fileReadTool: Tool = {
       const raw = await fs.readFile(resolvedPath, "utf-8");
       const allLines = raw.split("\n");
       const startIdx = Math.max(0, offset - 1);
+      // offset / limit 让模型可以对大文件做“先粗读、再定位”的两阶段读取，节省上下文。
       const endIdx = limit ? startIdx + limit : allLines.length;
       const selectedLines = allLines.slice(startIdx, endIdx);
       const numbered = addLineNumbers(selectedLines.join("\n"), startIdx + 1);

@@ -36,7 +36,7 @@ async function main(): Promise<void> {
 cc-agent v${VERSION} — Terminal-native agentic coding system
 
 Usage:
-  agent [options]
+  cc-agent [options]
 
 Options:
   -v, --version               Print version and exit

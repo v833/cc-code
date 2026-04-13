@@ -12,8 +12,8 @@ import type { Usage } from '../types/message.js'
  * - 恢复时按事件流重建 messages / usage
  * - 每个项目用 cwd hash 隔离，避免不同仓库的历史互串
  */
-const EASY_AGENT_HOME = path.join(os.homedir(), '.cc-agent')
-const PROJECTS_DIR = path.join(EASY_AGENT_HOME, 'projects')
+const CC_AGENT_HOME = path.join(os.homedir(), '.cc-agent')
+const PROJECTS_DIR = path.join(CC_AGENT_HOME, 'projects')
 const MAX_SESSIONS = 20
 
 export interface SessionPaths {
@@ -190,7 +190,7 @@ export function getSessionPaths(cwd: string, sessionId: string): SessionPaths {
   // 同一项目的所有会话都放在同一个目录下，latest 文件用来记录最近一次会话 id。
   const projectDir = path.join(PROJECTS_DIR, getProjectHash(cwd))
   return {
-    rootDir: EASY_AGENT_HOME,
+    rootDir: CC_AGENT_HOME,
     projectDir,
     transcriptPath: path.join(projectDir, `${sessionId}.jsonl`),
     latestPath: path.join(projectDir, 'latest')
