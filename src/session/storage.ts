@@ -1,10 +1,10 @@
-import * as crypto from "node:crypto";
-import * as fs from "node:fs/promises";
-import * as os from "node:os";
-import * as path from "node:path";
-import type { Dirent } from "node:fs";
-import type { MessageParam } from "@anthropic-ai/sdk/resources/messages.js";
-import type { Usage } from "../types/message.js";
+import * as crypto from 'node:crypto'
+import * as fs from 'node:fs/promises'
+import * as os from 'node:os'
+import * as path from 'node:path'
+import type { Dirent } from 'node:fs'
+import type { MessageParam } from '@anthropic-ai/sdk/resources/messages.js'
+import type { Usage } from '../types/message.js'
 
 /**
  * 会话存储层采用 jsonl 追加写入：
@@ -12,258 +12,274 @@ import type { Usage } from "../types/message.js";
  * - 恢复时按事件流重建 messages / usage
  * - 每个项目用 cwd hash 隔离，避免不同仓库的历史互串
  */
-const EASY_AGENT_HOME = path.join(os.homedir(), ".easy-agent");
-const PROJECTS_DIR = path.join(EASY_AGENT_HOME, "projects");
-const MAX_SESSIONS = 20;
+const EASY_AGENT_HOME = path.join(os.homedir(), '.cc-agent')
+const PROJECTS_DIR = path.join(EASY_AGENT_HOME, 'projects')
+const MAX_SESSIONS = 20
 
 export interface SessionPaths {
-  rootDir: string;
-  projectDir: string;
-  transcriptPath: string;
-  latestPath: string;
+  rootDir: string
+  projectDir: string
+  transcriptPath: string
+  latestPath: string
 }
 
 export interface SessionMetadata {
-  sessionId: string;
-  cwd: string;
-  startedAt: string;
-  updatedAt: string;
-  model: string;
+  sessionId: string
+  cwd: string
+  startedAt: string
+  updatedAt: string
+  model: string
 }
 
 export interface SessionSummary {
-  sessionId: string;
-  cwd: string;
-  startedAt: string;
-  updatedAt: string;
-  model: string;
-  messageCount: number;
-  totalUsage: Usage;
+  sessionId: string
+  cwd: string
+  startedAt: string
+  updatedAt: string
+  model: string
+  messageCount: number
+  totalUsage: Usage
 }
 
 export type TranscriptEntry =
-  | { type: "session_meta"; sessionId: string; cwd: string; startedAt: string; model: string }
-  | { type: "message"; timestamp: string; role: "user" | "assistant"; message: MessageParam }
-  | { type: "tool_event"; timestamp: string; name: string; phase: "start" | "done"; resultLength?: number; isError?: boolean }
-  | { type: "usage"; timestamp: string; turn: Usage; total: Usage }
-  | { type: "system"; timestamp: string; level: "info" | "error"; message: string };
+  | { type: 'session_meta'; sessionId: string; cwd: string; startedAt: string; model: string }
+  | { type: 'message'; timestamp: string; role: 'user' | 'assistant'; message: MessageParam }
+  | {
+      type: 'tool_event'
+      timestamp: string
+      name: string
+      phase: 'start' | 'done'
+      resultLength?: number
+      isError?: boolean
+    }
+  | { type: 'usage'; timestamp: string; turn: Usage; total: Usage }
+  | { type: 'system'; timestamp: string; level: 'info' | 'error'; message: string }
 
 export interface RestoredSession {
-  summary: SessionSummary;
-  messages: MessageParam[];
+  summary: SessionSummary
+  messages: MessageParam[]
 }
 
 function createEmptyUsage(): Usage {
   return {
     input_tokens: 0,
-    output_tokens: 0,
-  };
+    output_tokens: 0
+  }
 }
 
 function isUsage(value: unknown): value is Usage {
-  if (!value || typeof value !== "object") return false;
-  const usage = value as Record<string, unknown>;
-  return typeof usage.input_tokens === "number" && typeof usage.output_tokens === "number";
+  if (!value || typeof value !== 'object') return false
+  const usage = value as Record<string, unknown>
+  return typeof usage.input_tokens === 'number' && typeof usage.output_tokens === 'number'
 }
 
 function isMessageParam(value: unknown): value is MessageParam {
-  if (!value || typeof value !== "object") return false;
-  const record = value as Record<string, unknown>;
-  return (record.role === "user" || record.role === "assistant") && "content" in record;
+  if (!value || typeof value !== 'object') return false
+  const record = value as Record<string, unknown>
+  return (record.role === 'user' || record.role === 'assistant') && 'content' in record
 }
 
 function parseJsonLine(line: string): TranscriptEntry | null {
   try {
-    const parsed = JSON.parse(line) as Record<string, unknown>;
+    const parsed = JSON.parse(line) as Record<string, unknown>
 
     // 逐行做显式结构校验，避免历史文件损坏时把脏数据带进恢复流程。
-    if (parsed.type === "session_meta") {
+    if (parsed.type === 'session_meta') {
       if (
-        typeof parsed.sessionId === "string" &&
-        typeof parsed.cwd === "string" &&
-        typeof parsed.startedAt === "string" &&
-        typeof parsed.model === "string"
+        typeof parsed.sessionId === 'string' &&
+        typeof parsed.cwd === 'string' &&
+        typeof parsed.startedAt === 'string' &&
+        typeof parsed.model === 'string'
       ) {
         return {
-          type: "session_meta",
+          type: 'session_meta',
           sessionId: parsed.sessionId,
           cwd: parsed.cwd,
           startedAt: parsed.startedAt,
-          model: parsed.model,
-        };
+          model: parsed.model
+        }
       }
-      return null;
+      return null
     }
 
-    if (parsed.type === "message") {
+    if (parsed.type === 'message') {
       if (
-        typeof parsed.timestamp === "string" &&
-        (parsed.role === "user" || parsed.role === "assistant") &&
+        typeof parsed.timestamp === 'string' &&
+        (parsed.role === 'user' || parsed.role === 'assistant') &&
         isMessageParam(parsed.message)
       ) {
         return {
-          type: "message",
+          type: 'message',
           timestamp: parsed.timestamp,
           role: parsed.role,
-          message: parsed.message,
-        };
+          message: parsed.message
+        }
       }
-      return null;
+      return null
     }
 
-    if (parsed.type === "tool_event") {
+    if (parsed.type === 'tool_event') {
       if (
-        typeof parsed.timestamp === "string" &&
-        typeof parsed.name === "string" &&
-        (parsed.phase === "start" || parsed.phase === "done")
+        typeof parsed.timestamp === 'string' &&
+        typeof parsed.name === 'string' &&
+        (parsed.phase === 'start' || parsed.phase === 'done')
       ) {
         return {
-          type: "tool_event",
+          type: 'tool_event',
           timestamp: parsed.timestamp,
           name: parsed.name,
           phase: parsed.phase,
-          ...(typeof parsed.resultLength === "number" ? { resultLength: parsed.resultLength } : {}),
-          ...(typeof parsed.isError === "boolean" ? { isError: parsed.isError } : {}),
-        };
+          ...(typeof parsed.resultLength === 'number' ? { resultLength: parsed.resultLength } : {}),
+          ...(typeof parsed.isError === 'boolean' ? { isError: parsed.isError } : {})
+        }
       }
-      return null;
+      return null
     }
 
-    if (parsed.type === "usage") {
-      if (typeof parsed.timestamp === "string" && isUsage(parsed.turn) && isUsage(parsed.total)) {
+    if (parsed.type === 'usage') {
+      if (typeof parsed.timestamp === 'string' && isUsage(parsed.turn) && isUsage(parsed.total)) {
         return {
-          type: "usage",
+          type: 'usage',
           timestamp: parsed.timestamp,
           turn: parsed.turn,
-          total: parsed.total,
-        };
+          total: parsed.total
+        }
       }
-      return null;
+      return null
     }
 
-    if (parsed.type === "system") {
+    if (parsed.type === 'system') {
       if (
-        typeof parsed.timestamp === "string" &&
-        (parsed.level === "info" || parsed.level === "error") &&
-        typeof parsed.message === "string"
+        typeof parsed.timestamp === 'string' &&
+        (parsed.level === 'info' || parsed.level === 'error') &&
+        typeof parsed.message === 'string'
       ) {
         return {
-          type: "system",
+          type: 'system',
           timestamp: parsed.timestamp,
           level: parsed.level,
-          message: parsed.message,
-        };
+          message: parsed.message
+        }
       }
-      return null;
+      return null
     }
 
-    return null;
+    return null
   } catch {
-    return null;
+    return null
   }
 }
 
 function getLastUpdatedAt(entries: TranscriptEntry[], fallback: string): string {
   const latest = [...entries]
     .reverse()
-    .find((entry): entry is Extract<TranscriptEntry, { timestamp: string }> => "timestamp" in entry);
+    .find((entry): entry is Extract<TranscriptEntry, { timestamp: string }> => 'timestamp' in entry)
 
-  return latest?.timestamp ?? fallback;
+  return latest?.timestamp ?? fallback
 }
 
 export function createSessionId(): string {
-  return crypto.randomUUID();
+  return crypto.randomUUID()
 }
 
 export function getProjectHash(cwd: string): string {
-  return crypto.createHash("sha256").update(path.resolve(cwd)).digest("hex").slice(0, 16);
+  return crypto.createHash('sha256').update(path.resolve(cwd)).digest('hex').slice(0, 16)
 }
 
 export function getSessionPaths(cwd: string, sessionId: string): SessionPaths {
   // 同一项目的所有会话都放在同一个目录下，latest 文件用来记录最近一次会话 id。
-  const projectDir = path.join(PROJECTS_DIR, getProjectHash(cwd));
+  const projectDir = path.join(PROJECTS_DIR, getProjectHash(cwd))
   return {
     rootDir: EASY_AGENT_HOME,
     projectDir,
     transcriptPath: path.join(projectDir, `${sessionId}.jsonl`),
-    latestPath: path.join(projectDir, "latest"),
-  };
+    latestPath: path.join(projectDir, 'latest')
+  }
 }
 
 async function ensureSessionDir(paths: SessionPaths): Promise<void> {
-  await fs.mkdir(paths.projectDir, { recursive: true });
+  await fs.mkdir(paths.projectDir, { recursive: true })
 }
 
 export async function initSessionStorage(metadata: SessionMetadata): Promise<SessionPaths> {
-  const paths = getSessionPaths(metadata.cwd, metadata.sessionId);
-  await ensureSessionDir(paths);
+  const paths = getSessionPaths(metadata.cwd, metadata.sessionId)
+  await ensureSessionDir(paths)
 
   const metaEntry: TranscriptEntry = {
-    type: "session_meta",
+    type: 'session_meta',
     sessionId: metadata.sessionId,
     cwd: metadata.cwd,
     startedAt: metadata.startedAt,
-    model: metadata.model,
-  };
+    model: metadata.model
+  }
 
-  await fs.writeFile(paths.transcriptPath, `${JSON.stringify(metaEntry)}\n`, { flag: "a" });
-  await fs.writeFile(paths.latestPath, `${metadata.sessionId}\n`, "utf-8");
-  return paths;
+  await fs.writeFile(paths.transcriptPath, `${JSON.stringify(metaEntry)}\n`, { flag: 'a' })
+  await fs.writeFile(paths.latestPath, `${metadata.sessionId}\n`, 'utf-8')
+  return paths
 }
 
-export async function appendTranscriptEntry(cwd: string, sessionId: string, entry: TranscriptEntry): Promise<void> {
-  const paths = getSessionPaths(cwd, sessionId);
-  await ensureSessionDir(paths);
-  await fs.appendFile(paths.transcriptPath, `${JSON.stringify(entry)}\n`, "utf-8");
-  await fs.writeFile(paths.latestPath, `${sessionId}\n`, "utf-8");
+export async function appendTranscriptEntry(
+  cwd: string,
+  sessionId: string,
+  entry: TranscriptEntry
+): Promise<void> {
+  const paths = getSessionPaths(cwd, sessionId)
+  await ensureSessionDir(paths)
+  await fs.appendFile(paths.transcriptPath, `${JSON.stringify(entry)}\n`, 'utf-8')
+  await fs.writeFile(paths.latestPath, `${sessionId}\n`, 'utf-8')
 }
 
 async function readTranscriptEntries(filePath: string): Promise<TranscriptEntry[]> {
-  const raw = await fs.readFile(filePath, "utf-8");
+  const raw = await fs.readFile(filePath, 'utf-8')
   return raw
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean)
     .map(parseJsonLine)
-    .filter((entry): entry is TranscriptEntry => entry !== null);
+    .filter((entry): entry is TranscriptEntry => entry !== null)
 }
 
 export async function getLatestSessionId(cwd: string): Promise<string | null> {
-  const { latestPath } = getSessionPaths(cwd, "placeholder");
+  const { latestPath } = getSessionPaths(cwd, 'placeholder')
   try {
-    const value = (await fs.readFile(latestPath, "utf-8")).trim();
-    return value || null;
+    const value = (await fs.readFile(latestPath, 'utf-8')).trim()
+    return value || null
   } catch (error: unknown) {
-    const err = error as NodeJS.ErrnoException;
-    if (err?.code === "ENOENT") return null;
-    throw error;
+    const err = error as NodeJS.ErrnoException
+    if (err?.code === 'ENOENT') return null
+    throw error
   }
 }
 
 export async function restoreSession(cwd: string, sessionId?: string): Promise<RestoredSession> {
-  const resolvedSessionId = sessionId ?? (await getLatestSessionId(cwd));
+  const resolvedSessionId = sessionId ?? (await getLatestSessionId(cwd))
   if (!resolvedSessionId) {
-    throw new Error("No saved session found for this project.");
+    throw new Error('No saved session found for this project.')
   }
 
-  const { transcriptPath } = getSessionPaths(cwd, resolvedSessionId);
-  const entries = await readTranscriptEntries(transcriptPath);
+  const { transcriptPath } = getSessionPaths(cwd, resolvedSessionId)
+  const entries = await readTranscriptEntries(transcriptPath)
   if (entries.length === 0) {
-    throw new Error(`Session ${resolvedSessionId} is empty or unreadable.`);
+    throw new Error(`Session ${resolvedSessionId} is empty or unreadable.`)
   }
 
-  const meta = entries.find((entry): entry is Extract<TranscriptEntry, { type: "session_meta" }> => entry.type === "session_meta");
+  const meta = entries.find(
+    (entry): entry is Extract<TranscriptEntry, { type: 'session_meta' }> =>
+      entry.type === 'session_meta'
+  )
   if (!meta) {
-    throw new Error(`Session ${resolvedSessionId} is missing session metadata.`);
+    throw new Error(`Session ${resolvedSessionId} is missing session metadata.`)
   }
 
   const messages = entries
-    .filter((entry): entry is Extract<TranscriptEntry, { type: "message" }> => entry.type === "message")
-    .map((entry) => entry.message);
+    .filter(
+      (entry): entry is Extract<TranscriptEntry, { type: 'message' }> => entry.type === 'message'
+    )
+    .map((entry) => entry.message)
 
   const latestUsage = [...entries]
     .reverse()
-    .find((entry): entry is Extract<TranscriptEntry, { type: "usage" }> => entry.type === "usage");
+    .find((entry): entry is Extract<TranscriptEntry, { type: 'usage' }> => entry.type === 'usage')
 
   return {
     // 恢复只重建真正要喂给模型的 message 历史，tool/system 事件继续留在 transcript 里做审计用途。
@@ -274,38 +290,46 @@ export async function restoreSession(cwd: string, sessionId?: string): Promise<R
       updatedAt: getLastUpdatedAt(entries, meta.startedAt),
       model: meta.model,
       messageCount: messages.length,
-      totalUsage: latestUsage?.total ?? createEmptyUsage(),
+      totalUsage: latestUsage?.total ?? createEmptyUsage()
     },
-    messages,
-  };
+    messages
+  }
 }
 
-export async function listProjectSessions(cwd: string, limit = MAX_SESSIONS): Promise<SessionSummary[]> {
-  const projectDir = getSessionPaths(cwd, "placeholder").projectDir;
-  let entries: Dirent[];
+export async function listProjectSessions(
+  cwd: string,
+  limit = MAX_SESSIONS
+): Promise<SessionSummary[]> {
+  const projectDir = getSessionPaths(cwd, 'placeholder').projectDir
+  let entries: Dirent[]
 
   try {
-    entries = await fs.readdir(projectDir, { withFileTypes: true });
+    entries = await fs.readdir(projectDir, { withFileTypes: true })
   } catch (error: unknown) {
-    const err = error as NodeJS.ErrnoException;
-    if (err?.code === "ENOENT") return [];
-    throw error;
+    const err = error as NodeJS.ErrnoException
+    if (err?.code === 'ENOENT') return []
+    throw error
   }
 
   const sessionFiles = entries
-    .filter((entry) => entry.isFile() && entry.name.endsWith(".jsonl"))
-    .map((entry) => path.join(projectDir, entry.name));
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.jsonl'))
+    .map((entry) => path.join(projectDir, entry.name))
 
   const sessions = await Promise.all(
     sessionFiles.map(async (filePath) => {
-      const transcriptEntries = await readTranscriptEntries(filePath);
-      const meta = transcriptEntries.find((entry): entry is Extract<TranscriptEntry, { type: "session_meta" }> => entry.type === "session_meta");
-      if (!meta) return null;
+      const transcriptEntries = await readTranscriptEntries(filePath)
+      const meta = transcriptEntries.find(
+        (entry): entry is Extract<TranscriptEntry, { type: 'session_meta' }> =>
+          entry.type === 'session_meta'
+      )
+      if (!meta) return null
 
-      const messages = transcriptEntries.filter((entry) => entry.type === "message");
+      const messages = transcriptEntries.filter((entry) => entry.type === 'message')
       const latestUsage = [...transcriptEntries]
         .reverse()
-        .find((entry): entry is Extract<TranscriptEntry, { type: "usage" }> => entry.type === "usage");
+        .find(
+          (entry): entry is Extract<TranscriptEntry, { type: 'usage' }> => entry.type === 'usage'
+        )
 
       return {
         sessionId: meta.sessionId,
@@ -314,14 +338,16 @@ export async function listProjectSessions(cwd: string, limit = MAX_SESSIONS): Pr
         updatedAt: getLastUpdatedAt(transcriptEntries, meta.startedAt),
         model: meta.model,
         messageCount: messages.length,
-        totalUsage: latestUsage?.total ?? createEmptyUsage(),
-      } satisfies SessionSummary;
-    }),
-  );
+        totalUsage: latestUsage?.total ?? createEmptyUsage()
+      } satisfies SessionSummary
+    })
+  )
 
-  return sessions
-    .filter((session): session is SessionSummary => session !== null)
-    // 优先展示最近活动的会话，符合 REPL “继续上次工作”的使用习惯。
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0, limit);
+  return (
+    sessions
+      .filter((session): session is SessionSummary => session !== null)
+      // 优先展示最近活动的会话，符合 REPL “继续上次工作”的使用习惯。
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, limit)
+  )
 }
