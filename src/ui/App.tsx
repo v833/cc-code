@@ -48,7 +48,7 @@ export function App({
     <Box flexDirection='column' paddingX={1}>
       <Box marginBottom={1}>
         <Text bold color='cyan'>
-          Easy Agent
+          CC Agent
         </Text>
         <Text dimColor> ({state.currentModel})</Text>
       </Box>

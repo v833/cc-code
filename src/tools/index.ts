@@ -7,15 +7,16 @@
  * - UI 也能更准确地展示工具语义
  */
 
-import type Anthropic from "@anthropic-ai/sdk";
-import type { Tool } from "./Tool.js";
-import { toolToApiParam } from "./Tool.js";
-import { bashTool } from "./bashTool.js";
-import { fileEditTool } from "./fileEditTool.js";
-import { fileReadTool } from "./fileReadTool.js";
-import { fileWriteTool } from "./fileWriteTool.js";
-import { globTool } from "./globTool.js";
-import { grepTool } from "./grepTool.js";
+import type Anthropic from '@anthropic-ai/sdk'
+import type { Tool } from './Tool.js'
+import { toolToApiParam } from './Tool.js'
+import { bashTool } from './bashTool.js'
+import { fileEditTool } from './fileEditTool.js'
+import { fileReadTool } from './fileReadTool.js'
+import { fileWriteTool } from './fileWriteTool.js'
+import { globTool } from './globTool.js'
+import { grepTool } from './grepTool.js'
+import { memoryWriteTool } from './memoryWriteTool.js'
 
 const ALL_TOOLS: Tool[] = [
   fileReadTool,
@@ -24,17 +25,18 @@ const ALL_TOOLS: Tool[] = [
   globTool,
   grepTool,
   bashTool,
-];
+  memoryWriteTool
+]
 
 export function getAllTools(): Tool[] {
   // 统一从注册表过滤启用状态，避免上层关心单个工具是否可用。
-  return ALL_TOOLS.filter((tool) => tool.isEnabled());
+  return ALL_TOOLS.filter((tool) => tool.isEnabled())
 }
 
 export function findToolByName(name: string): Tool | undefined {
-  return ALL_TOOLS.find((tool) => tool.name === name);
+  return ALL_TOOLS.find((tool) => tool.name === name)
 }
 
 export function getToolsApiParams(): Anthropic.Tool[] {
-  return getAllTools().map(toolToApiParam);
+  return getAllTools().map(toolToApiParam)
 }
