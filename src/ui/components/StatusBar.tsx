@@ -1,15 +1,15 @@
-import React from "react";
-import { Box, Text } from "ink";
-import { Spinner } from "./Spinner.js";
-import type { PermissionPromptState, UsageSummary } from "../types.js";
+import React from 'react'
+import { Box, Text } from 'ink'
+import { Spinner } from './Spinner.js'
+import type { PermissionPromptState, UsageSummary } from '../types.js'
 
 interface StatusBarProps {
-  isLoading: boolean;
-  spinnerLabel: string;
-  streamingText: string;
-  lastUsage: UsageSummary | null;
-  permissionPrompt: PermissionPromptState | null;
-  permissionMode: string;
+  isLoading: boolean
+  spinnerLabel: string
+  streamingText: string
+  lastUsage: UsageSummary | null
+  permissionPrompt: PermissionPromptState | null
+  permissionMode: string
 }
 
 export function StatusBar({
@@ -18,21 +18,42 @@ export function StatusBar({
   streamingText,
   lastUsage,
   permissionPrompt,
-  permissionMode,
+  permissionMode
 }: StatusBarProps): React.ReactNode {
   return (
     <>
       <Box>
-        <Text dimColor>{"  mode: "}{permissionMode}</Text>
+        <Text dimColor>
+          {'  mode: '}
+          {permissionMode}
+        </Text>
       </Box>
 
       {permissionPrompt && (
-        <Box marginTop={1} flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1}>
-          <Text color="yellow">{"⚠ Permission required: "}{permissionPrompt.toolName}</Text>
-          <Text dimColor>{"  args: "}{permissionPrompt.summary}</Text>
-          <Text dimColor>{"  risk: "}{permissionPrompt.risk}</Text>
-          <Text dimColor>{"  always allow rule: "}{permissionPrompt.ruleHint}</Text>
-          <Text color="cyan">{"  [y] allow once   [n] deny   [a] always allow (session)"}</Text>
+        <Box
+          marginTop={1}
+          flexDirection='column'
+          borderStyle='round'
+          borderColor='yellow'
+          paddingX={1}
+        >
+          <Text color='yellow'>
+            {'⚠ Permission required: '}
+            {permissionPrompt.toolName}
+          </Text>
+          <Text dimColor>
+            {'  args: '}
+            {permissionPrompt.summary}
+          </Text>
+          <Text dimColor>
+            {'  risk: '}
+            {permissionPrompt.risk}
+          </Text>
+          <Text dimColor>
+            {'  always allow rule: '}
+            {permissionPrompt.ruleHint}
+          </Text>
+          <Text color='cyan'>{'  [y] allow once   [n] deny   [a] always allow (session)'}</Text>
         </Box>
       )}
 
@@ -44,24 +65,34 @@ export function StatusBar({
 
       {isLoading && streamingText && !permissionPrompt && (
         <Box marginTop={0}>
-          <Text color="magenta">{"\u258E "}</Text>
+          <Text color='magenta'>{'\u258E '}</Text>
           <Text>{streamingText}</Text>
         </Box>
       )}
 
       {lastUsage && !isLoading && (
-        <Box>
+        <Box flexDirection='column'>
           <Text dimColor>
-            {"  tokens: "}
+            {'  tokens: '}
             {lastUsage.input + lastUsage.output}
-            {" total ("}
+            {' total ('}
             {lastUsage.input}
-            {" in / "}
+            {' in / '}
             {lastUsage.output}
-            {" out)"}
+            {' out)'}
           </Text>
+          {typeof lastUsage.contextTokens === 'number' &&
+            typeof lastUsage.contextPercent === 'number' && (
+              <Text dimColor>
+                {'  context: ~'}
+                {lastUsage.contextTokens}
+                {' tokens ('}
+                {lastUsage.contextPercent}
+                {'% of max window)'}
+              </Text>
+            )}
         </Box>
       )}
     </>
-  );
+  )
 }

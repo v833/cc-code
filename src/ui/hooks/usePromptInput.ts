@@ -17,6 +17,7 @@ const ALL_COMMANDS: CommandSuggestion[] = [
   { name: '/clear', description: 'Clear conversation history' },
   { name: '/cost', description: 'Show session token usage' },
   { name: '/model', description: 'Inspect current model or override it for this session' },
+  { name: '/compact', description: 'Compact the conversation context' },
   { name: '/history', description: 'Show message count' },
   { name: '/exit', description: 'Exit the session' }
 ]
